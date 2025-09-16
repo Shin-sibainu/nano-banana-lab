@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "mcp__serena__activate_project",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enabledMcpjsonServers": [
+    "supabase",
+    "playwright",
+    "serena",
+    "context7"
+  ]
+}
