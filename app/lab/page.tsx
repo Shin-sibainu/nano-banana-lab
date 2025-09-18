@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -27,33 +27,61 @@ export default function LabPage() {
       return;
     }
 
-    try {
-      const result = await apiClient.post<{ jobId: string }>('/generate', {
-        prompt: prompt.trim(),
-        inputs: { variants, seed },
-        images: images.filter(Boolean),
-        variants,
+    // Create a temporary job for UI
+    const tempJob: Job = {
+      id: `job_${Date.now()}`,
+      inputs: { prompt, variants, seed, images },
+      status: 'running',
+      progress: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    setCurrentJob(tempJob);
+    toast.success('生成を開始しました');
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setCurrentJob(prev => {
+        if (!prev || prev.progress >= 90) return prev;
+        return { ...prev, progress: prev.progress + 10 };
       });
-      
-      const newJob: Job = {
-        id: result.jobId,
-        inputs: { prompt, variants, seed, images },
-        status: 'queued',
-        progress: 0,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setCurrentJob(newJob);
-      toast.success('生成ジョブを開始しました');
+    }, 500);
+
+    try {
+      // Call the generate API directly
+      const response = await apiClient.post<{ resultUrls: string[], status: string }>('/generate', {
+        prompt,
+        images,
+        variants
+      });
+
+      clearInterval(progressInterval);
+
+      if (response.resultUrls && response.resultUrls.length > 0) {
+        const completedJob: Job = {
+          ...tempJob,
+          status: 'succeeded',
+          progress: 100,
+          resultUrls: response.resultUrls
+        };
+
+        handleJobUpdate(completedJob);
+      } else {
+        throw new Error('画像が生成されませんでした');
+      }
     } catch (error) {
+      clearInterval(progressInterval);
       console.error('Generation failed:', error);
+      setCurrentJob(null);
       toast.error('生成に失敗しました');
     }
   };
 
+  // Remove mock progress effect - we're now using real API
+
   const handleJobUpdate = (updatedJob: Job) => {
     setCurrentJob(updatedJob);
-    
+
     if (updatedJob.status === 'succeeded') {
       setCompletedJobs(prev => [updatedJob, ...prev]);
       setCurrentJob(null);

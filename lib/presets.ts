@@ -7,44 +7,20 @@ export const presets: Preset[] = [
     title: "衣装替え",
     tags: ["人物", "変換"],
     description:
-      "人物の衣装を指定したスタイルに変更します。同じ人物の顔を保持したまま、新しい服装に着替えさせることができます。",
+      "人物の衣装を参考画像の服装に変更します。同じ人物の顔を保持したまま、新しい服装に着替えさせることができます。",
     coverUrl: "https://placehold.co/400x400?text=Outfit+Change",
     promptTemplate:
-      'Change the outfit of the person in ${person} to ${reference_outfit ? "match the outfit style shown in ${reference_outfit}" : `"${outfit_style}"`} while keeping the same face and ${same_pose ? "same pose" : "natural pose"}. ${detail_requirements ? `Additional requirements: ${detail_requirements}` : ""}',
+      "Change the outfit of the person in ${person} to match the exact outfit shown in ${reference_outfit} while keeping the same face and pose. Make the clothing swap look natural and realistic.",
     params: [
       { id: "person", label: "人物画像", type: "image", required: true },
       {
         id: "reference_outfit",
-        label: "参考衣装画像（オプション）",
+        label: "参考衣装画像",
         type: "image",
-        required: false,
-      },
-      {
-        id: "outfit_style",
-        label: "衣装スタイル（テキスト説明）",
-        type: "text",
-        placeholder: "ビジネススーツ、カジュアル、ドレスなど",
-        required: false,
-      },
-      {
-        id: "detail_requirements",
-        label: "詳細な要求",
-        type: "text",
-        placeholder: "色、素材、スタイルの詳細など",
-        required: false,
-      },
-      {
-        id: "same_pose",
-        label: "同じポーズを維持",
-        type: "switch",
-        default: true,
+        required: true,
       },
     ],
-    sampleInputs: {
-      outfit_style: "エレガントなイブニングドレス",
-      detail_requirements: "深い赤色、シルク素材、背中が開いたデザイン",
-      same_pose: true,
-    },
+    sampleInputs: {},
   },
   {
     id: "pose-change",
@@ -451,6 +427,95 @@ export const presets: Preset[] = [
     promptTemplate:
       "Convert ${photo} into a comic book panel style with bold lines and dramatic effects.",
     params: [{ id: "photo", label: "写真", type: "image", required: true }],
+  },
+
+  // 🎯 高度な画像合成（複数画像）
+  {
+    id: "face-swap",
+    title: "顔交換",
+    tags: ["人物", "合成"],
+    description:
+      "2つの画像から顔を入れ替えます。自然な仕上がりで違和感のない合成を実現。",
+    coverUrl: "https://placehold.co/400x400?text=Face+Swap",
+    promptTemplate:
+      "Take the face from ${source_face} and naturally swap it onto the person in ${target_body}. Ensure natural skin tone matching and proper lighting integration. The facial features from the first image should completely replace those in the second image while maintaining the second image's pose, clothing, and background.",
+    params: [
+      { id: "source_face", label: "顔の元画像", type: "image", required: true },
+      { id: "target_body", label: "体の対象画像", type: "image", required: true },
+    ],
+  },
+  {
+    id: "object-insertion",
+    title: "オブジェクト合成",
+    tags: ["合成", "編集"],
+    description:
+      "一つの画像から特定のオブジェクトを抽出し、別の画像に自然に配置します。",
+    coverUrl: "https://placehold.co/400x400?text=Object+Insert",
+    promptTemplate:
+      "Extract the ${object_desc} from ${source_image} and naturally place it into ${target_scene} at the position indicated. Adjust lighting, shadows, and perspective to match the target scene perfectly.",
+    params: [
+      { id: "source_image", label: "オブジェクト元画像", type: "image", required: true },
+      { id: "target_scene", label: "配置先シーン", type: "image", required: true },
+      { id: "object_desc", label: "抽出するオブジェクト", type: "text", placeholder: "例：赤い車、青い花瓶、犬など", required: true },
+    ],
+  },
+  {
+    id: "style-fusion",
+    title: "スタイル融合",
+    tags: ["アート", "合成"],
+    description:
+      "複数の画像のスタイルを組み合わせて、ユニークなアート作品を生成します。",
+    coverUrl: "https://placehold.co/400x400?text=Style+Fusion",
+    promptTemplate:
+      "Combine the artistic style from ${style_reference} with the content and composition of ${content_image}. The result should maintain the structure and subject of the content image while adopting the colors, brushstrokes, and artistic techniques of the style reference.",
+    params: [
+      { id: "content_image", label: "コンテンツ画像", type: "image", required: true },
+      { id: "style_reference", label: "スタイル参照画像", type: "image", required: true },
+    ],
+  },
+  {
+    id: "outfit-transfer",
+    title: "衣装転送",
+    tags: ["人物", "ファッション", "合成"],
+    description:
+      "一人の服装を別の人物に転送します。体型に合わせて自然にフィッティング。",
+    coverUrl: "https://placehold.co/400x400?text=Outfit+Transfer",
+    promptTemplate:
+      "Transfer the complete outfit (clothing, accessories) from the person in ${outfit_source} to the person in ${person_target}. Adjust the clothing to fit naturally on the target person's body shape and pose. Keep the target person's face, hair, and background unchanged.",
+    params: [
+      { id: "outfit_source", label: "衣装の元画像", type: "image", required: true },
+      { id: "person_target", label: "着せ替え対象の人物", type: "image", required: true },
+    ],
+  },
+  {
+    id: "scene-merge",
+    title: "シーン合成",
+    tags: ["シーン", "合成"],
+    description:
+      "複数の画像から要素を抽出して、新しいシーンを作成します。背景、前景、被写体を自由に組み合わせ。",
+    coverUrl: "https://placehold.co/400x400?text=Scene+Merge",
+    promptTemplate:
+      "Create a new scene by taking the background from ${background}, the main subject from ${subject}, and the foreground elements from ${foreground}. Ensure proper depth of field, lighting consistency, and natural perspective throughout the composition.",
+    params: [
+      { id: "background", label: "背景画像", type: "image", required: true },
+      { id: "subject", label: "主要被写体", type: "image", required: true },
+      { id: "foreground", label: "前景要素", type: "image", required: true },
+    ],
+  },
+  {
+    id: "product-context",
+    title: "商品コンテキスト配置",
+    tags: ["商品", "合成"],
+    description:
+      "商品を様々なライフスタイルシーンに自然に配置。使用シーンのビジュアル化。",
+    coverUrl: "https://placehold.co/400x400?text=Product+Context",
+    promptTemplate:
+      "Place the product from ${product} naturally into the lifestyle scene shown in ${scene}. The product should appear as if it belongs in the environment with proper shadows, reflections, and scale. ${placement_hint}",
+    params: [
+      { id: "product", label: "商品画像", type: "image", required: true },
+      { id: "scene", label: "配置シーン", type: "image", required: true },
+      { id: "placement_hint", label: "配置のヒント", type: "text", placeholder: "テーブルの上に、手に持って、など" },
+    ],
   },
 ];
 

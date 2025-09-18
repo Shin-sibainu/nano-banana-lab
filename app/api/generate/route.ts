@@ -1,157 +1,115 @@
-import { NextResponse } from 'next/server';
-import type { GenerateRequest, Job } from '@/lib/types';
-import { generateWithGemini, buildPrompt } from '@/lib/gemini';
-import { getPresetById } from '@/lib/presets';
-
-// In-memory job storage (replace with database in production)
-const jobs = new Map<string, Job>();
+import { NextResponse } from "next/server";
+import type { GenerateRequest } from "@/lib/types";
+import { generateImageWithGemini } from "@/lib/gemini-image-gen";
+import { getPresetById } from "@/lib/presets";
 
 export async function POST(request: Request) {
   const data: GenerateRequest = await request.json();
 
-  // Generate job ID
-  const jobId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-
-  // Create job
-  const job: Job = {
-    id: jobId,
-    presetId: data.presetId,
-    inputs: data.inputs,
-    status: 'queued',
-    progress: 0,
-    createdAt: new Date().toISOString(),
-  };
-
-  // Store job
-  jobs.set(jobId, job);
-
-  // Start processing with Gemini API
-  processJobWithGemini(jobId, data);
-
-  return NextResponse.json({ jobId });
-}
-
-async function processJobWithGemini(jobId: string, data: GenerateRequest) {
-  const job = jobs.get(jobId);
-  if (!job) return;
-
   try {
-    // Update status to running
-    job.status = 'running';
-    job.progress = 10;
-    jobs.set(jobId, job);
 
     // Get API key
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey =
+      process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('Gemini API key not configured');
+      return NextResponse.json(
+        { error: "Gemini API key not configured. Please set GEMINI_API_KEY in .env.local" },
+        { status: 500 }
+      );
     }
 
     // Get preset if provided
     const preset = data.presetId ? getPresetById(data.presetId) : null;
 
     // Build prompt and collect images
-    let prompt = '';
+    let prompt = "";
     const images: string[] = [];
 
     if (preset) {
-      // Debug: Log inputs
-      console.log('Preset inputs:', data.inputs);
-      console.log('Preset template:', preset.promptTemplate);
-
       // Build prompt from template
-      prompt = buildPrompt(preset.promptTemplate, data.inputs);
+      prompt = preset.promptTemplate.replace(/\$\{([^}]+)\}/g, (match, key) => {
+        return data.inputs[key] || match;
+      });
 
       // Collect image inputs
-      preset.params.forEach(param => {
-        if (param.type === 'image' && data.inputs[param.id]) {
+      preset.params.forEach((param) => {
+        if (param.type === "image" && data.inputs[param.id]) {
           images.push(data.inputs[param.id]);
         }
       });
-
-      // Debug: Log built prompt
-      console.log('Built prompt:', prompt);
     } else {
       // Custom prompt
-      prompt = data.prompt || '';
+      prompt = data.prompt || "";
       if (data.images) {
         images.push(...data.images);
       }
     }
 
     // Validate prompt
-    if (!prompt || prompt.trim() === '') {
-      throw new Error('プロンプトが空です。パラメータを確認してください。');
+    if (!prompt || prompt.trim() === "") {
+      return NextResponse.json(
+        { error: "プロンプトが空です。パラメータを確認してください。" },
+        { status: 400 }
+      );
     }
 
-    // Update progress
-    job.progress = 30;
-    jobs.set(jobId, job);
-
-    // Call Gemini API
-    console.log('Generating with Gemini:', {
-      prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : ''),
-      imageCount: images.length
+    console.log("Generating with Gemini:", {
+      prompt: prompt.substring(0, 200) + (prompt.length > 200 ? "..." : ""),
+      imageCount: images.length,
     });
-    const result = await generateWithGemini(apiKey, prompt, images);
 
-    // Update progress
-    job.progress = 80;
-    jobs.set(jobId, job);
+    // Call Gemini API and get result directly
+    const result = await generateImageWithGemini(
+      apiKey,
+      prompt,
+      images,
+      0
+    );
 
-    // For now, Gemini 2.5 Flash returns text, not images
-    // In production, integrate with an actual image generation service
-    console.log('Gemini response:', result);
+    // Process result
+    const resultUrls: string[] = [];
 
-    // Mark as complete with placeholder result
-    job.status = 'succeeded';
-    job.progress = 100;
-    job.resultUrls = [
-      `https://placehold.co/1024x1024?text=Generated+${jobId.slice(0, 6)}`,
-      ...(data.variants && data.variants > 1
-        ? Array(data.variants - 1).fill(0).map((_, i) =>
-            `https://placehold.co/1024x1024?text=Variant+${i+1}`)
-        : [])
-    ];
-
-    jobs.set(jobId, job);
-
-  } catch (error) {
-    console.error('Generation error:', error);
-    job.status = 'failed';
-    job.progress = 0;
-    jobs.set(jobId, job);
-  }
-}
-
-// Fallback mock processing (for demo purposes)
-async function processJob(jobId: string) {
-  const job = jobs.get(jobId);
-  if (!job) return;
-
-  // Update status to running
-  job.status = 'running';
-  jobs.set(jobId, job);
-
-  // Simulate processing with progress updates
-  const progressSteps = [20, 40, 60, 80, 100];
-
-  for (const progress of progressSteps) {
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-
-    const currentJob = jobs.get(jobId);
-    if (!currentJob) return;
-
-    currentJob.progress = progress;
-
-    if (progress === 100) {
-      currentJob.status = 'succeeded';
-      currentJob.resultUrls = [
-        `https://placehold.co/1024x1024?text=Result+${jobId.slice(0, 6)}`,
-        ...(Math.random() > 0.5 ? [`https://placehold.co/1024x1024?text=Variant+${jobId.slice(0, 6)}`] : [])
-      ];
+    if (result) {
+      resultUrls.push(result);
+    } else {
+      console.error("No result from Gemini API");
+      return NextResponse.json(
+        { error: "画像生成に失敗しました" },
+        { status: 500 }
+      );
     }
 
-    jobs.set(jobId, currentJob);
+    // Generate variants if requested
+    if (data.variants && data.variants > 1) {
+      for (let i = 1; i < data.variants; i++) {
+        try {
+          const variantResult = await generateImageWithGemini(
+            apiKey,
+            prompt + ` (variation ${i + 1})`,
+            images,
+            0
+          );
+          if (variantResult && variantResult.startsWith("data:image")) {
+            resultUrls.push(variantResult);
+          }
+        } catch (variantError) {
+          console.error(`Variant ${i} generation failed:`, variantError);
+        }
+      }
+    }
+
+    console.log(`Generated ${resultUrls.length} images`);
+
+    // Return results directly
+    return NextResponse.json({
+      resultUrls,
+      status: "succeeded"
+    });
+  } catch (error: any) {
+    console.error("Generation error:", error);
+    return NextResponse.json(
+      { error: error.message || "画像生成に失敗しました" },
+      { status: 500 }
+    );
   }
 }

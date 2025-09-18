@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import NextImage from 'next/image';
 
 interface ImageUploaderProps {
   value?: string;
@@ -18,9 +18,60 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleFileSelect = useCallback((file: File) => {
+    // Check file size
+    if (file.size > 5 * 1024 * 1024) {
+      alert('ファイルサイズは5MB以下にしてください');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
-      onChange(reader.result as string);
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+
+        // Max dimensions - much smaller to stay under token limit
+        const maxSize = 512;  // Reduced from 800
+        let width = img.width;
+        let height = img.height;
+
+        // Always resize to reduce tokens
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to JPEG with MORE compression
+        const base64 = canvas.toDataURL('image/jpeg', 0.5);  // Reduced from 0.7
+
+        // Log size for debugging
+        const sizeInKB = Math.round((base64.length * 3) / 4 / 1024);
+        console.log(`Resized image size: ${sizeInKB}KB (${width}x${height})`);
+
+        // Check if still too large
+        if (sizeInKB > 200) {
+          console.warn(`Image still large after compression: ${sizeInKB}KB`);
+          // Try even more compression
+          const base64Small = canvas.toDataURL('image/jpeg', 0.3);
+          const sizeSmallKB = Math.round((base64Small.length * 3) / 4 / 1024);
+          console.log(`Extra compressed size: ${sizeSmallKB}KB`);
+          onChange(base64Small);
+          return;
+        }
+
+        onChange(base64);
+      };
+      img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
   }, [onChange]);
@@ -68,7 +119,7 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
       >
         {value ? (
           <div className="relative w-full h-full">
-            <Image
+            <NextImage
               src={value}
               alt="Uploaded image"
               fill
@@ -90,7 +141,7 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
               画像をドラッグ&ドロップまたはクリックして選択
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              PNG, JPG, WEBP (最大10MB)
+              PNG, JPG, WEBP (最大5MB)
             </p>
             <Button
               type="button"

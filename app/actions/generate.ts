@@ -9,11 +9,14 @@ export async function generateImage(data: {
 }) {
   try {
     // バックエンドAPIを呼び出し（実際の実装に置き換える）
-    const response = await fetch(`${process.env.API_URL || "http://localhost:3000"}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const response = await fetch(
+      `${process.env.API_URL || "http://localhost:3000"}/api/generate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }
+    );
 
     if (!response.ok) {
       throw new Error("Generation failed");

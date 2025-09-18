@@ -90,35 +90,121 @@ npm run lint     # Run ESLint
 ### Gemini API Integration (Image Generation Backend)
 
 #### Model Information
-- **Primary Model**: Gemini 2.5 Flash (Preview) - Supports image generation
-- **Alternative Models**: Imagen 4, Imagen 4 Ultra for advanced use cases
+- **Primary Model**: `gemini-2.5-flash-image-preview` - Supports native image generation
+- **Text Generation Models**: `gemini-2.0-flash-exp`, `gemini-1.5-flash` (text only, no image generation)
+
+#### Correct Implementation (IMPORTANT!)
+
+**正しいパッケージと呼び出し方：**
+```typescript
+// ✅ CORRECT - Use @google/genai package
+import { GoogleGenAI, Modality } from "@google/genai";
+
+// Initialize with API key
+const ai = new GoogleGenAI({ apiKey });
+
+// Generate image - MUST use ai.models.generateContent
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash-image-preview",
+  contents: promptParts,
+});
+
+// Extract generated image
+for (const part of response.candidates[0].content.parts) {
+  if (part.inlineData && part.inlineData.data) {
+    const imageData = part.inlineData.data;
+    const mimeType = part.inlineData.mimeType || "image/png";
+    return `data:${mimeType};base64,${imageData}`;
+  }
+}
+```
+
+**間違った実装（避けるべき）：**
+```typescript
+// ❌ WRONG - Don't use @google/generative-ai
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// ❌ WRONG - Don't use getGenerativeModel
+const model = genAI.getGenerativeModel({ model: "..." });
+const result = await model.generateContent(parts);
+```
+
+#### Package Requirements
+```json
+{
+  "@google/genai": "^1.20.0"  // 正しいパッケージ
+  // NOT @google/generative-ai
+}
+```
 
 #### Supported Features
 1. **Text-to-Image**: Generate images from text descriptions
 2. **Image Editing**: Modify existing images with text instructions
 3. **Multi-Image Composition**: Combine elements from multiple images (max 3 recommended)
-4. **Iterative Refinement**: Adjust results through conversation
-
-#### API Implementation Notes
-```typescript
-// Example generation endpoint structure
-const generateWithGemini = async (prompt: string, images?: string[]) => {
-  // API endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
-  // Headers: { "Content-Type": "application/json", "x-goog-api-key": API_KEY }
-  // Input images should be base64 encoded
-  // Response includes generated image in base64 format
-};
-```
+4. **Outfit Transfer**: Change clothing while keeping face/pose
 
 #### Key Considerations
 - **Language Support**: Best performance in EN, es-MX, ja-JP, zh-CN, hi-IN
 - **Watermarking**: All generated images include SynthID watermark automatically
-- **Pricing**: ~1,290 tokens per image generation (¥30 per 1M tokens)
-- **Rate Limits**: Consider implementing queue system for production
+- **Rate Limits**: Free tier has strict limits, consider paid plan
 - **Image Format**: Base64 encoding for input/output images
+- **API Key**: Get from https://aistudio.google.com/app/apikey
+
+#### Common Errors and Solutions
+- **"Cannot read properties of undefined (reading 'generateContent')"**: Wrong package or calling method
+- **"API key expired"**: Generate new key at Google AI Studio
+- **"Quota exceeded"**: Upgrade to paid plan or wait for reset
 
 #### Prompt Best Practices
 - Provide specific, detailed descriptions
-- Include background context and intent
+- For outfit changes: Specify both source and target clearly
 - Use step-by-step instructions for complex edits
-- Iterate with refinement prompts for better results
+- Include style, lighting, and atmosphere details
+
+### Advanced Image Composition (Multi-Image Synthesis)
+
+#### Overview
+Gemini 2.5 Flash supports combining elements from multiple images to create complex compositions. This is Nano Banana Lab's core feature for advanced image editing.
+
+#### Capabilities
+1. **Element Extraction**: Pull specific objects/people from different images
+2. **Style Transfer**: Apply artistic styles from one image to another
+3. **Scene Composition**: Combine backgrounds, foregrounds, and subjects
+4. **Product Visualization**: Place products in different contexts
+5. **Fashion Transfer**: Transfer clothing between models
+
+#### Implementation Guidelines
+```typescript
+// Multi-image composition example
+const composeImages = async (images: string[], instruction: string) => {
+  const payload = {
+    contents: [{
+      parts: [
+        ...images.map(img => ({ inline_data: { mime_type: "image/jpeg", data: img }})),
+        { text: instruction }
+      ]
+    }]
+  };
+  // POST to Gemini API
+};
+```
+
+#### Composition Strategies
+1. **Be Extremely Specific**: Describe exactly which elements from which image
+2. **Explain Intent**: Provide context for why you're combining these elements
+3. **Use Step-by-Step**: Break complex compositions into sequential instructions
+4. **Semantic Negative Prompting**: Specify what NOT to change
+5. **Photographic Terminology**: Use camera angles, lighting terms, composition rules
+
+#### Example Prompts
+- **Fashion**: "Take the blue dress from image 1 and put it on the model from image 2"
+- **Product**: "Place the watch from image 1 on the wrist of the person in image 2"
+- **Background**: "Keep the person from image 1 but replace background with scene from image 2"
+- **Style**: "Apply the artistic style of image 2 to the photo in image 1"
+
+#### Limitations & Best Practices
+- **Max 3 images recommended** for optimal performance
+- **Order matters**: Reference images by position (first image, second image)
+- **Preserve faces**: Explicitly state when facial features should remain unchanged
+- **Lighting consistency**: Request natural lighting adjustments when combining
+- **Resolution**: Output maintains quality of input images

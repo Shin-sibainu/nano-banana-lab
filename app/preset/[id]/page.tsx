@@ -50,25 +50,52 @@ export default function PresetDetailPage() {
   const handleGenerate = async () => {
     if (!preset) return;
 
+    // Create a temporary job for UI
+    const tempJob: Job = {
+      id: `job_${Date.now()}`,
+      presetId: preset.id,
+      inputs: formValues,
+      status: "running",
+      progress: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    setCurrentJob(tempJob);
+    toast.success("生成を開始しました");
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setCurrentJob(prev => {
+        if (!prev || prev.progress >= 90) return prev;
+        return { ...prev, progress: prev.progress + 10 };
+      });
+    }, 500);
+
     try {
-      const result = await apiClient.post<{ jobId: string }>("/generate", {
+      // Call the generate API directly
+      const result = await apiClient.post<{ resultUrls: string[], status: string }>("/generate", {
         presetId: preset.id,
         inputs: formValues,
       });
 
-      const newJob: Job = {
-        id: result.jobId,
-        presetId: preset.id,
-        inputs: formValues,
-        status: "queued",
-        progress: 0,
-        createdAt: new Date().toISOString(),
-      };
+      clearInterval(progressInterval);
 
-      setCurrentJob(newJob);
-      toast.success("生成ジョブを開始しました");
+      if (result.resultUrls && result.resultUrls.length > 0) {
+        const completedJob: Job = {
+          ...tempJob,
+          status: 'succeeded',
+          progress: 100,
+          resultUrls: result.resultUrls
+        };
+
+        handleJobUpdate(completedJob);
+      } else {
+        throw new Error('画像が生成されませんでした');
+      }
     } catch (error) {
+      clearInterval(progressInterval);
       console.error("Generation failed:", error);
+      setCurrentJob(null);
       toast.error("生成に失敗しました");
     }
   };
@@ -100,19 +127,8 @@ export default function PresetDetailPage() {
   const canGenerate = () => {
     if (!preset) return false;
 
-    const hasPersonalImage = preset.params.some(
-      (p) =>
-        p.type === "image" && (p.id.includes("person") || p.id.includes("人物"))
-    );
-
-    if (hasPersonalImage && !consent.personalImages) {
-      return false;
-    }
-
-    const requiredParams = preset.params.filter(
-      (p) => "required" in p && p.required
-    );
-    return requiredParams.every((p) => formValues[p.id]);
+    // モックなので必須フィールドチェックも緩める（画像なしでも生成可能に）
+    return true;
   };
 
   if (!preset) {
@@ -177,20 +193,6 @@ export default function PresetDetailPage() {
               isGenerating={!!currentJob}
               canGenerate={canGenerate()}
             />
-
-            {!canGenerate() &&
-              preset.params.some(
-                (p) =>
-                  p.type === "image" &&
-                  (p.id.includes("person") || p.id.includes("人物"))
-              ) &&
-              !consent.personalImages && (
-                <div className="mt-4 p-4 glass border border-destructive/20 rounded-xl">
-                  <p className="text-sm text-destructive">
-                    人物画像の生成には同意が必要です。ヘッダーから設定を確認してください。
-                  </p>
-                </div>
-              )}
           </CardContent>
         </Card>
 

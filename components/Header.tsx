@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Menu, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +24,20 @@ export function Header() {
     <header className="border-b glass backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <div className="bg-primary p-2 rounded-xl">
-              <Zap className="h-6 w-6 text-white" />
+          <Link href="/" className="flex items-center gap-3 font-bold text-xl group">
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden transition-transform group-hover:scale-110">
+              <Image
+                src="/apple-icon.png"
+                alt="Nano Banana Lab"
+                width={40}
+                height={40}
+                className="object-cover"
+                priority
+              />
             </div>
-            <span className="text-2xl font-extrabold">Nano Banana Lab</span>
+            <span className="text-2xl font-extrabold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
+              Nano Banana Lab
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
