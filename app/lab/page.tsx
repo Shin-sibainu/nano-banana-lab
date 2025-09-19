@@ -10,8 +10,9 @@ import { ImageUploader } from '@/components/ImageUploader';
 import { JobStatusBar } from '@/components/JobStatusBar';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/client';
-import type { Job } from '@/lib/types';
+import type { Job, ImageData } from '@/lib/types';
 import Image from 'next/image';
+import { Download } from 'lucide-react';
 
 export default function LabPage() {
   const [prompt, setPrompt] = useState('');
@@ -92,9 +93,10 @@ export default function LabPage() {
     }
   };
 
-  const addImage = (image: string | undefined) => {
-    if (image) {
-      setImages(prev => [...prev, image]);
+  const addImage = (imageData: ImageData | undefined) => {
+    if (imageData) {
+      // Store the full data URL for display and API
+      setImages(prev => [...prev, imageData.previewUrl]);
     }
   };
 
@@ -180,7 +182,7 @@ export default function LabPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <ImageUploader
-                value=""
+                value={undefined}
                 onChange={addImage}
               />
               
@@ -254,18 +256,52 @@ export default function LabPage() {
                     )}
 
                     {job.resultUrls && job.resultUrls.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {job.resultUrls.map((url, index) => (
-                          <Image
-                            key={index}
-                            src={url}
-                            alt={`Result ${index + 1}`}
-                            width={300}
-                            height={300}
-                            className="rounded-lg object-cover w-full aspect-square hover:scale-105 transition-transform cursor-pointer"
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {job.resultUrls.map((url, index) => (
+                            <div key={index} className="relative group">
+                              <Image
+                                src={url}
+                                alt={`Result ${index + 1}`}
+                                width={300}
+                                height={300}
+                                className="rounded-lg object-cover w-full aspect-square hover:scale-105 transition-transform cursor-pointer"
+                              />
+                              <Button
+                                size="icon"
+                                variant="secondary"
+                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.download = `lab-result-${job.id}-${index + 1}.png`;
+                                  link.click();
+                                }}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              job.resultUrls?.forEach((url, index) => {
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `lab-result-${job.id}-${index + 1}.png`;
+                                setTimeout(() => link.click(), index * 100);
+                              });
+                              toast.success('すべての画像をダウンロード中...');
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            ダウンロード ({job.resultUrls.length}枚)
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </div>
                 ))}

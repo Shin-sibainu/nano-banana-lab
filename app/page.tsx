@@ -5,17 +5,6 @@ import { PresetFilters } from "@/components/home/PresetFilters";
 import { QuickGenerateDialog } from "@/components/home/QuickGenerateDialog";
 import { presets } from "@/lib/presets";
 
-export const metadata: Metadata = {
-  title: "ホーム",
-  description:
-    "Nano Banana Labへようこそ。AI技術を活用した革新的な画像生成・編集プラットフォーム。写真修復、スタイル変換、衣装替え、背景置換など、プロフェッショナルな画像加工を誰でも簡単に。",
-  openGraph: {
-    title: "Nano Banana Lab - ホーム",
-    description: "AI画像生成・編集の新しい体験。豊富なプリセットから選んで、プロレベルの作品を簡単作成。",
-    images: ["/og-home.jpg"],
-  },
-};
-
 export default async function HomePage({
   searchParams,
 }: {

@@ -41,3 +41,9 @@ export type ConsentState = {
   exifRemoval: boolean;
   generationLabel: boolean;
 };
+
+export type ImageData = {
+  base64: string;      // Pure base64 string without data URL prefix
+  mimeType: string;    // MIME type of the image (e.g., "image/jpeg")
+  previewUrl: string;  // Full data URL for preview
+};

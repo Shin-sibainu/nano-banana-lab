@@ -13,12 +13,14 @@ import {
 } from "@/components/ui/card";
 import { ParameterForm } from "@/components/ParameterForm";
 import { Button } from "@/components/ui/button";
-import { Copy, RotateCcw } from "lucide-react";
+import { Copy, RotateCcw, Download } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { apiClient } from "@/lib/client";
 import { getPresetById } from "@/lib/presets";
 import { useConsent } from "@/lib/consent";
 import { toast } from "sonner";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { AuthModal } from "@/components/AuthModal";
 
 export default function PresetDetailPage() {
   const params = useParams();
@@ -31,6 +33,8 @@ export default function PresetDetailPage() {
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const { consent } = useConsent();
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const missingPresetNotified = useRef(false);
 
@@ -50,6 +54,12 @@ export default function PresetDetailPage() {
   const handleGenerate = async () => {
     if (!preset) return;
 
+    // Check if user is logged in
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
     // Create a temporary job for UI
     const tempJob: Job = {
       id: `job_${Date.now()}`,
@@ -63,17 +73,34 @@ export default function PresetDetailPage() {
     setCurrentJob(tempJob);
     toast.success("生成を開始しました");
 
-    // Simulate progress
+    // More realistic progress simulation (slower)
+    let progress = 0;
     const progressInterval = setInterval(() => {
-      setCurrentJob(prev => {
-        if (!prev || prev.progress >= 90) return prev;
-        return { ...prev, progress: prev.progress + 10 };
+      setCurrentJob((prev) => {
+        if (!prev) return prev;
+
+        // Slower progress curve - takes about 20-25 seconds to reach 90%
+        if (progress < 30) {
+          progress += 3; // Fast initial progress
+        } else if (progress < 60) {
+          progress += 2; // Medium speed
+        } else if (progress < 85) {
+          progress += 1; // Slow down
+        } else if (progress < 90) {
+          progress += 0.5; // Very slow near end
+        }
+
+        progress = Math.min(progress, 90);
+        return { ...prev, progress: Math.round(progress) };
       });
-    }, 500);
+    }, 800); // Update every 800ms instead of 500ms
 
     try {
       // Call the generate API directly
-      const result = await apiClient.post<{ resultUrls: string[], status: string }>("/generate", {
+      const result = await apiClient.post<{
+        resultUrls: string[];
+        status: string;
+      }>("/generate", {
         presetId: preset.id,
         inputs: formValues,
       });
@@ -83,14 +110,14 @@ export default function PresetDetailPage() {
       if (result.resultUrls && result.resultUrls.length > 0) {
         const completedJob: Job = {
           ...tempJob,
-          status: 'succeeded',
+          status: "succeeded",
           progress: 100,
-          resultUrls: result.resultUrls
+          resultUrls: result.resultUrls,
         };
 
         handleJobUpdate(completedJob);
       } else {
-        throw new Error('画像が生成されませんでした');
+        throw new Error("画像が生成されませんでした");
       }
     } catch (error) {
       clearInterval(progressInterval);
@@ -242,40 +269,61 @@ export default function PresetDetailPage() {
                           fill
                           className="object-cover group-hover:scale-110 transition-transform duration-500"
                         />
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 px-2"
-                            onClick={() => {
-                              const link = document.createElement("a");
-                              link.href = url;
-                              link.download = `result-${job.id}-${index}.png`;
-                              link.click();
-                            }}
-                          >
-                            ダウンロード
-                          </Button>
-                        </div>
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="absolute top-2 right-2 h-10 w-10 shadow-lg opacity-90 hover:opacity-100"
+                          onClick={() => {
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = `${preset?.title || "result"}-${
+                              job.id
+                            }-${index + 1}.png`;
+                            link.click();
+                          }}
+                        >
+                          <Download className="h-5 w-5" />
+                        </Button>
                       </div>
                     ))}
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 glass"
-                        onClick={() => handleRerun(job)}
+                        variant="default"
+                        size="default"
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold"
+                        onClick={() => {
+                          job.resultUrls?.forEach((url, index) => {
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = `${preset?.title || "result"}-${
+                              job.id
+                            }-${index + 1}.png`;
+                            setTimeout(() => link.click(), index * 100);
+                          });
+                          toast.success("ダウンロード中...");
+                        }}
                       >
-                        再実行
+                        <Download className="h-5 w-5 mr-2" />
+                        ダウンロード
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 glass"
-                        onClick={() => handleCopyShareLink(job)}
-                      >
-                        共有
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 glass"
+                          onClick={() => handleRerun(job)}
+                        >
+                          再実行
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 glass"
+                          onClick={() => handleCopyShareLink(job)}
+                        >
+                          共有
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -293,6 +341,9 @@ export default function PresetDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
     </div>
   );
 }

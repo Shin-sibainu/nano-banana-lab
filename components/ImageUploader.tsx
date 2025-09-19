@@ -1,92 +1,135 @@
-'use client';
+"use client";
 
-import { useCallback, useRef, useState } from 'react';
-import { Upload, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import NextImage from 'next/image';
+import { useCallback, useRef, useState } from "react";
+import { Upload, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import NextImage from "next/image";
+import type { ImageData } from "@/lib/types";
 
 interface ImageUploaderProps {
-  value?: string;
-  onChange: (value: string | undefined) => void;
+  value?: ImageData;
+  onChange: (value: ImageData | undefined) => void;
   required?: boolean;
   className?: string;
 }
 
-export function ImageUploader({ value, onChange, required, className }: ImageUploaderProps) {
+export function ImageUploader({
+  value,
+  onChange,
+  required,
+  className,
+}: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleFileSelect = useCallback((file: File) => {
-    // Check file size
-    if (file.size > 5 * 1024 * 1024) {
-      alert('ファイルサイズは5MB以下にしてください');
-      return;
-    }
+  const handleFileSelect = useCallback(
+    (file: File) => {
+      // Check file size
+      if (file.size > 5 * 1024 * 1024) {
+        alert("ファイルサイズは5MB以下にしてください");
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d')!;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d")!;
 
-        // Max dimensions - much smaller to stay under token limit
-        const maxSize = 512;  // Reduced from 800
-        let width = img.width;
-        let height = img.height;
+          // Improved quality: 768px for better results while staying safe
+          // Testing shows 768px = ~50-80KB per image = safe under 32K token limit
+          const maxSize = 768; // Increased for better quality
+          let width = img.width;
+          let height = img.height;
 
-        // Always resize to reduce tokens
-        if (width > maxSize || height > maxSize) {
-          if (width > height) {
-            height = Math.round((height * maxSize) / width);
-            width = maxSize;
-          } else {
-            width = Math.round((width * maxSize) / height);
-            height = maxSize;
+          // Always resize to reduce tokens
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
           }
-        }
 
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
 
-        // Convert to JPEG with MORE compression
-        const base64 = canvas.toDataURL('image/jpeg', 0.5);  // Reduced from 0.7
+          // Better quality compression for 768px
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.65); // Increased quality
+          const base64 = dataUrl.split(",")[1]; // Extract pure base64
 
-        // Log size for debugging
-        const sizeInKB = Math.round((base64.length * 3) / 4 / 1024);
-        console.log(`Resized image size: ${sizeInKB}KB (${width}x${height})`);
+          // Calculate size
+          const sizeInKB = Math.round((base64.length * 3) / 4 / 1024);
 
-        // Check if still too large
-        if (sizeInKB > 200) {
-          console.warn(`Image still large after compression: ${sizeInKB}KB`);
-          // Try even more compression
-          const base64Small = canvas.toDataURL('image/jpeg', 0.3);
-          const sizeSmallKB = Math.round((base64Small.length * 3) / 4 / 1024);
-          console.log(`Extra compressed size: ${sizeSmallKB}KB`);
-          onChange(base64Small);
-          return;
-        }
+          // Check if still too large (adjusted threshold for 768px)
+          if (sizeInKB > 300) {
+            // Increased threshold
+            // Fallback to smaller dimensions
+            const smallerSize = 640;
+            let smallWidth = img.width;
+            let smallHeight = img.height;
 
-        onChange(base64);
+            if (smallWidth > smallerSize || smallHeight > smallerSize) {
+              if (smallWidth > smallHeight) {
+                smallHeight = Math.round(
+                  (smallHeight * smallerSize) / smallWidth
+                );
+                smallWidth = smallerSize;
+              } else {
+                smallWidth = Math.round(
+                  (smallWidth * smallerSize) / smallHeight
+                );
+                smallHeight = smallerSize;
+              }
+            }
+
+            canvas.width = smallWidth;
+            canvas.height = smallHeight;
+            ctx.drawImage(img, 0, 0, smallWidth, smallHeight);
+
+            const dataUrlSmall = canvas.toDataURL("image/jpeg", 0.6);
+            const base64Small = dataUrlSmall.split(",")[1];
+            const sizeSmallKB = Math.round((base64Small.length * 3) / 4 / 1024);
+            onChange({
+              base64: base64Small,
+              mimeType: "image/jpeg",
+              previewUrl: dataUrlSmall,
+            });
+            return;
+          }
+
+          onChange({
+            base64: base64,
+            mimeType: "image/jpeg",
+            previewUrl: dataUrl,
+          });
+        };
+        img.src = reader.result as string;
       };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  }, [onChange]);
+      reader.readAsDataURL(file);
+    },
+    [onChange]
+  );
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    
-    if (imageFile) {
-      handleFileSelect(imageFile);
-    }
-  }, [handleFileSelect]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      const imageFile = files.find((file) => file.type.startsWith("image/"));
+
+      if (imageFile) {
+        handleFileSelect(imageFile);
+      }
+    },
+    [handleFileSelect]
+  );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,7 +141,7 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
   const handleRemove = () => {
     onChange(undefined);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -107,7 +150,9 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
       <div
         className={cn(
           "relative border-2 border-dashed rounded-lg p-6 transition-colors",
-          isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+          isDragOver
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25",
           value ? "aspect-square" : "aspect-video"
         )}
         onDragOver={(e) => {
@@ -120,7 +165,7 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
         {value ? (
           <div className="relative w-full h-full">
             <NextImage
-              src={value}
+              src={value.previewUrl}
               alt="Uploaded image"
               fill
               className="object-cover rounded-md"
@@ -153,7 +198,7 @@ export function ImageUploader({ value, onChange, required, className }: ImageUpl
           </div>
         )}
       </div>
-      
+
       <input
         ref={fileInputRef}
         type="file"

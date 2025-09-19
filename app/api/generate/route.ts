@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { GenerateRequest } from "@/lib/types";
+import type { GenerateRequest, ImageData } from "@/lib/types";
 import { generateImageWithGemini } from "@/lib/gemini-image-gen";
 import { getPresetById } from "@/lib/presets";
 
@@ -7,13 +7,15 @@ export async function POST(request: Request) {
   const data: GenerateRequest = await request.json();
 
   try {
-
     // Get API key
     const apiKey =
       process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Gemini API key not configured. Please set GEMINI_API_KEY in .env.local" },
+        {
+          error:
+            "Gemini API key not configured. Please set GEMINI_API_KEY in .env.local",
+        },
         { status: 500 }
       );
     }
@@ -34,7 +36,13 @@ export async function POST(request: Request) {
       // Collect image inputs
       preset.params.forEach((param) => {
         if (param.type === "image" && data.inputs[param.id]) {
-          images.push(data.inputs[param.id]);
+          const imageData = data.inputs[param.id] as ImageData;
+          // If it's an ImageData object, use the previewUrl; otherwise assume it's a string
+          if (typeof imageData === 'object' && imageData.previewUrl) {
+            images.push(imageData.previewUrl);
+          } else if (typeof imageData === 'string') {
+            images.push(imageData);
+          }
         }
       });
     } else {
@@ -53,18 +61,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("Generating with Gemini:", {
-      prompt: prompt.substring(0, 200) + (prompt.length > 200 ? "..." : ""),
-      imageCount: images.length,
-    });
 
     // Call Gemini API and get result directly
-    const result = await generateImageWithGemini(
-      apiKey,
-      prompt,
-      images,
-      0
-    );
+    const result = await generateImageWithGemini(apiKey, prompt, images, 0);
 
     // Process result
     const resultUrls: string[] = [];
@@ -72,7 +71,6 @@ export async function POST(request: Request) {
     if (result) {
       resultUrls.push(result);
     } else {
-      console.error("No result from Gemini API");
       return NextResponse.json(
         { error: "画像生成に失敗しました" },
         { status: 500 }
@@ -93,20 +91,18 @@ export async function POST(request: Request) {
             resultUrls.push(variantResult);
           }
         } catch (variantError) {
-          console.error(`Variant ${i} generation failed:`, variantError);
+          // Variant generation failed, skip
         }
       }
     }
 
-    console.log(`Generated ${resultUrls.length} images`);
 
     // Return results directly
     return NextResponse.json({
       resultUrls,
-      status: "succeeded"
+      status: "succeeded",
     });
   } catch (error: any) {
-    console.error("Generation error:", error);
     return NextResponse.json(
       { error: error.message || "画像生成に失敗しました" },
       { status: 500 }

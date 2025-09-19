@@ -4,6 +4,7 @@ import { Noto_Sans_JP } from "next/font/google";
 import { Header } from "@/components/Header";
 import { ConsentDialog } from "@/components/ConsentDialog";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ["latin"],
@@ -114,10 +115,12 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={notoSansJP.className}>
-        <Header />
-        <main className="min-h-screen bg-background">{children}</main>
-        <ConsentDialog />
-        <Toaster />
+        <AuthProvider>
+          <Header />
+          <main className="min-h-screen bg-background">{children}</main>
+          <ConsentDialog />
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

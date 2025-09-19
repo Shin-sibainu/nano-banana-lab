@@ -1,13 +1,19 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ImageUploader } from './ImageUploader';
-import type { PresetParam } from '@/lib/types';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ImageUploader } from "./ImageUploader";
+import type { PresetParam, ImageData } from "@/lib/types";
 
 interface ParameterFormProps {
   params: PresetParam[];
@@ -18,13 +24,13 @@ interface ParameterFormProps {
   canGenerate?: boolean;
 }
 
-export function ParameterForm({ 
-  params, 
-  values, 
-  onChange, 
+export function ParameterForm({
+  params,
+  values,
+  onChange,
   onSubmit,
   isGenerating = false,
-  canGenerate = true
+  canGenerate = true,
 }: ParameterFormProps) {
   const handleValueChange = (paramId: string, value: any) => {
     onChange({ ...values, [paramId]: value });
@@ -32,7 +38,7 @@ export function ParameterForm({
 
   const renderParam = (param: PresetParam) => {
     switch (param.type) {
-      case 'text':
+      case "text":
         return (
           <div key={param.id} className="space-y-2">
             <Label htmlFor={param.id} className="flex items-center gap-1">
@@ -42,14 +48,14 @@ export function ParameterForm({
             <Input
               id={param.id}
               placeholder={param.placeholder}
-              value={values[param.id] || ''}
+              value={values[param.id] || ""}
               onChange={(e) => handleValueChange(param.id, e.target.value)}
               required={param.required}
             />
           </div>
         );
 
-      case 'select':
+      case "select":
         return (
           <div key={param.id} className="space-y-2">
             <Label htmlFor={param.id} className="flex items-center gap-1">
@@ -57,7 +63,7 @@ export function ParameterForm({
               {param.required && <span className="text-destructive">*</span>}
             </Label>
             <Select
-              value={values[param.id] || ''}
+              value={values[param.id] || ""}
               onValueChange={(value) => handleValueChange(param.id, value)}
             >
               <SelectTrigger>
@@ -74,7 +80,7 @@ export function ParameterForm({
           </div>
         );
 
-      case 'number':
+      case "number":
         return (
           <div key={param.id} className="space-y-2">
             <Label htmlFor={param.id}>{param.label}</Label>
@@ -85,24 +91,28 @@ export function ParameterForm({
               max={param.max}
               step={param.step}
               value={values[param.id] || param.min || 0}
-              onChange={(e) => handleValueChange(param.id, parseInt(e.target.value))}
+              onChange={(e) =>
+                handleValueChange(param.id, parseInt(e.target.value))
+              }
             />
           </div>
         );
 
-      case 'switch':
+      case "switch":
         return (
           <div key={param.id} className="flex items-center justify-between">
             <Label htmlFor={param.id}>{param.label}</Label>
             <Switch
               id={param.id}
               checked={values[param.id] ?? param.default ?? false}
-              onCheckedChange={(checked) => handleValueChange(param.id, checked)}
+              onCheckedChange={(checked) =>
+                handleValueChange(param.id, checked)
+              }
             />
           </div>
         );
 
-      case 'image':
+      case "image":
         return (
           <div key={param.id} className="space-y-2">
             <Label className="flex items-center gap-1">
@@ -110,7 +120,7 @@ export function ParameterForm({
               {param.required && <span className="text-destructive">*</span>}
             </Label>
             <ImageUploader
-              value={values[param.id]}
+              value={values[param.id] as ImageData | undefined}
               onChange={(value) => handleValueChange(param.id, value)}
               required={param.required}
             />
@@ -124,18 +134,16 @@ export function ParameterForm({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
-        {params.map(renderParam)}
-      </div>
-      
+      <div className="grid gap-6 md:grid-cols-2">{params.map(renderParam)}</div>
+
       {onSubmit && (
-        <Button 
+        <Button
           onClick={onSubmit}
           disabled={isGenerating || !canGenerate}
           className="w-full py-3 text-lg font-semibold gradient-animated text-white border-0 shadow-glow hover:shadow-glow-hover hover:scale-105 transition-all duration-300"
           size="lg"
         >
-          {isGenerating ? '生成中...' : '生成する'}
+          {isGenerating ? "生成中..." : "生成する"}
         </Button>
       )}
     </div>
