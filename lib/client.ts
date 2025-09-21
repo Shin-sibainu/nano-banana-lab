@@ -1,10 +1,26 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public data?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export class ApiClient {
   private baseUrl = '';
 
   async get<T>(endpoint: string): Promise<T> {
     const response = await fetch(`/api${endpoint}`);
     if (!response.ok) {
-      throw new Error(`Failed to fetch ${endpoint}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `Failed to fetch ${endpoint}`,
+        response.status,
+        errorData
+      );
     }
     return response.json();
   }
@@ -18,7 +34,12 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error(`Failed to post to ${endpoint}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `Failed to post to ${endpoint}`,
+        response.status,
+        errorData
+      );
     }
     return response.json();
   }
@@ -32,7 +53,12 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error(`Failed to put to ${endpoint}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `Failed to put to ${endpoint}`,
+        response.status,
+        errorData
+      );
     }
     return response.json();
   }
@@ -42,7 +68,12 @@ export class ApiClient {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error(`Failed to delete ${endpoint}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `Failed to delete ${endpoint}`,
+        response.status,
+        errorData
+      );
     }
     return response.json();
   }

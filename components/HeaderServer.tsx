@@ -15,7 +15,7 @@ export async function HeaderServer() {
   if (user) {
     const { data } = await supabase
       .from("users")
-      .select("credits, display_name")
+      .select("credits, display_name, avatar_url")
       .eq("id", user.id)
       .single();
 
@@ -68,6 +68,7 @@ export async function HeaderServer() {
           user={user}
           initialCredits={userData?.credits || 0}
           initialDisplayName={userData?.display_name}
+          initialAvatarUrl={userData?.avatar_url}
         />
       </div>
     </header>

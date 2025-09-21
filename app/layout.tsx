@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { ConsentDialog } from "@/components/ConsentDialog";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -116,8 +117,11 @@ export default function RootLayout({
     <html lang="ja">
       <body className={notoSansJP.className}>
         <AuthProvider>
-          <Header />
-          <main className="min-h-screen bg-background">{children}</main>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-1 bg-background">{children}</main>
+            <Footer />
+          </div>
           <ConsentDialog />
           <Toaster />
         </AuthProvider>

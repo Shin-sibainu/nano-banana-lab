@@ -15,12 +15,13 @@ import { ParameterForm } from "@/components/ParameterForm";
 import { Button } from "@/components/ui/button";
 import { Copy, RotateCcw, Download } from "lucide-react";
 import type { Job } from "@/lib/types";
-import { apiClient } from "@/lib/client";
+import { apiClient, ApiError } from "@/lib/client";
 import { getPresetById } from "@/lib/presets";
 import { useConsent } from "@/lib/consent";
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { AuthModal } from "@/components/AuthModal";
+import CreditInsufficientDialog from "@/components/CreditInsufficientDialog";
 
 export default function PresetDetailPage() {
   const params = useParams();
@@ -33,8 +34,10 @@ export default function PresetDetailPage() {
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const { consent } = useConsent();
-  const { user } = useAuth();
+  const { user, credits } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showCreditDialog, setShowCreditDialog] = useState(false);
+  const [creditDialogData, setCreditDialogData] = useState({ needed: 1, current: 0 });
 
   const missingPresetNotified = useRef(false);
 
@@ -123,7 +126,17 @@ export default function PresetDetailPage() {
       clearInterval(progressInterval);
       console.error("Generation failed:", error);
       setCurrentJob(null);
-      toast.error("生成に失敗しました");
+
+      // Handle credit insufficient error
+      if (error instanceof ApiError && error.status === 402) {
+        setCreditDialogData({
+          needed: 1,
+          current: credits || 0
+        });
+        setShowCreditDialog(true);
+      } else {
+        toast.error("生成に失敗しました");
+      }
     }
   };
 
@@ -344,6 +357,14 @@ export default function PresetDetailPage() {
 
       {/* Auth Modal */}
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+
+      {/* Credit Insufficient Dialog */}
+      <CreditInsufficientDialog
+        open={showCreditDialog}
+        onOpenChange={setShowCreditDialog}
+        creditsNeeded={creditDialogData.needed}
+        currentCredits={creditDialogData.current}
+      />
     </div>
   );
 }

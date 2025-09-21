@@ -22,12 +22,14 @@ interface HeaderClientProps {
   user: User | null;
   initialCredits: number;
   initialDisplayName?: string;
+  initialAvatarUrl?: string;
 }
 
-export function HeaderClient({ user, initialCredits, initialDisplayName }: HeaderClientProps) {
+export function HeaderClient({ user, initialCredits, initialDisplayName, initialAvatarUrl }: HeaderClientProps) {
   const { signOut } = useAuth();
   const [credits, setCredits] = useState<number>(initialCredits);
   const [displayName, setDisplayName] = useState<string | undefined>(initialDisplayName);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialAvatarUrl);
   const supabase = createClient();
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export function HeaderClient({ user, initialCredits, initialDisplayName }: Heade
     // Update state with initial values
     setCredits(initialCredits);
     setDisplayName(initialDisplayName);
+    setAvatarUrl(initialAvatarUrl);
 
     // Subscribe to realtime changes
     const subscription = supabase
@@ -52,6 +55,7 @@ export function HeaderClient({ user, initialCredits, initialDisplayName }: Heade
           if (payload.new) {
             setCredits(payload.new.credits || 0);
             setDisplayName(payload.new.display_name);
+            setAvatarUrl(payload.new.avatar_url);
           }
         }
       )
@@ -60,7 +64,7 @@ export function HeaderClient({ user, initialCredits, initialDisplayName }: Heade
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, supabase, initialCredits, initialDisplayName]);
+  }, [user, supabase, initialCredits, initialDisplayName, initialAvatarUrl]);
 
   return (
     <div className="flex items-center gap-4">
@@ -72,7 +76,10 @@ export function HeaderClient({ user, initialCredits, initialDisplayName }: Heade
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.user_metadata?.avatar_url} />
+                  <AvatarImage
+                    src={avatarUrl || user.user_metadata?.avatar_url}
+                    alt={displayName || user.email || 'User'}
+                  />
                   <AvatarFallback className="bg-primary/10">
                     {displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
